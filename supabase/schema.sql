@@ -232,7 +232,6 @@ drop trigger if exists trg_log_repair_timeline on public.repairs;
 create trigger trg_log_repair_timeline
 after insert or update on public.repairs
 for each row
-when (tg_op = 'INSERT' or (new.status is distinct from old.status))
 execute function public.log_repair_timeline();
 
 --------------------------------------------------------------------------------
@@ -523,8 +522,9 @@ for insert with check (current_user_role() = 'admin');
 --------------------------------------------------------------------------------
 -- Storage bucket + policies (repairs-media)
 --------------------------------------------------------------------------------
-select storage.create_bucket('repairs-media', public => false)
-on conflict do nothing;
+insert into storage.buckets (id, name, public)
+values ('repairs-media', 'repairs-media', false)
+on conflict (id) do nothing;
 
 -- Helper: parse repair_id and folder from object path repairs/{repair_id}/{segment}/{file}
 create or replace function public.storage_repair_id(obj storage.objects)
@@ -554,7 +554,7 @@ for select using (
   bucket_id = 'repairs-media'
   and exists (
     select 1 from public.repairs r
-    where r.id = public.storage_repair_id(storage.objects)
+    where r.id = public.storage_repair_id(objects)
       and r.created_by = auth.uid()
   )
 );
@@ -565,7 +565,7 @@ for select using (
   bucket_id = 'repairs-media'
   and exists (
     select 1 from public.repairs r
-    where r.id = public.storage_repair_id(storage.objects)
+    where r.id = public.storage_repair_id(objects)
       and r.assigned_worker_id = auth.uid()
   )
 );
@@ -579,10 +579,10 @@ drop policy if exists storage_student_write on storage.objects;
 create policy storage_student_write on storage.objects
 for insert with check (
   bucket_id = 'repairs-media'
-  and storage_segment(storage.objects) in ('repair','feedback')
+  and storage_segment(objects) in ('repair','feedback')
   and exists (
     select 1 from public.repairs r
-    where r.id = public.storage_repair_id(storage.objects)
+    where r.id = public.storage_repair_id(objects)
       and r.created_by = auth.uid()
   )
 );
@@ -591,10 +591,10 @@ drop policy if exists storage_worker_write on storage.objects;
 create policy storage_worker_write on storage.objects
 for insert with check (
   bucket_id = 'repairs-media'
-  and storage_segment(storage.objects) = 'report'
+  and storage_segment(objects) = 'report'
   and exists (
     select 1 from public.repairs r
-    where r.id = public.storage_repair_id(storage.objects)
+    where r.id = public.storage_repair_id(objects)
       and r.assigned_worker_id = auth.uid()
   )
 );
@@ -609,19 +609,19 @@ drop policy if exists storage_student_update on storage.objects;
 create policy storage_student_update on storage.objects
 for update using (
   bucket_id = 'repairs-media'
-  and storage_segment(storage.objects) in ('repair','feedback')
+  and storage_segment(objects) in ('repair','feedback')
   and exists (
     select 1 from public.repairs r
-    where r.id = public.storage_repair_id(storage.objects)
+    where r.id = public.storage_repair_id(objects)
       and r.created_by = auth.uid()
   )
 )
 with check (
   bucket_id = 'repairs-media'
-  and storage_segment(storage.objects) in ('repair','feedback')
+  and storage_segment(objects) in ('repair','feedback')
   and exists (
     select 1 from public.repairs r
-    where r.id = public.storage_repair_id(storage.objects)
+    where r.id = public.storage_repair_id(objects)
       and r.created_by = auth.uid()
   )
 );
@@ -630,20 +630,19 @@ drop policy if exists storage_worker_update on storage.objects;
 create policy storage_worker_update on storage.objects
 for update using (
   bucket_id = 'repairs-media'
-  and storage_segment(storage.objects) = 'report'
+  and storage_segment(objects) = 'report'
   and exists (
     select 1 from public.repairs r
-    where r.id = public.storage_repair_id(storage.objects)
+    where r.id = public.storage_repair_id(objects)
       and r.assigned_worker_id = auth.uid()
   )
 )
 with check (
   bucket_id = 'repairs-media'
-  and storage_segment(storage.objects) = 'report'
+  and storage_segment(objects) = 'report'
   and exists (
     select 1 from public.repairs r
-    where r.id = public.storage_repair_id(storage.objects)
+    where r.id = public.storage_repair_id(objects)
       and r.assigned_worker_id = auth.uid()
   )
 );
-

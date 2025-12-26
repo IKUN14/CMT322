@@ -10,6 +10,7 @@
     "test:ui": "vitest --ui"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.89.0",
     "echarts": "^5.5.0",
     "pinia": "^2.1.7",
     "vue": "^3.4.21",
