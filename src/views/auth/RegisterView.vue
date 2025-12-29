@@ -150,4 +150,22 @@ const handleRegister = async () => {
   border-radius: 4px;
   font-size: 14px;
 }
+
+.toast {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  padding: 12px 16px;
+  border-radius: 8px;
+  font-size: 14px;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.2);
+  z-index: 10;
+}
+
+.toast-success {
+  background-color: #f0f9eb;
+  color: #67c23a;
+  border: 1px solid #c2e7b0;
+}
+
 </style>

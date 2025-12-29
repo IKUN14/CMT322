@@ -27,7 +27,13 @@ const getKpiLabel = (key: string) => {
     inProgressTickets: 'In Progress',
     resolvedTickets: 'Resolved',
     avgResolutionTime: 'Avg Resolution Time (hours)',
-    urgentTickets: 'Urgent Repairs'
+    urgentTickets: 'Urgent Repairs',
+    total_repairs: 'Total Repairs',
+    pending_count: 'Pending',
+    in_progress_count: 'In Progress',
+    resolved_count: 'Resolved',
+    urgent_repairs_count: 'Urgent Repairs',
+    avg_resolution_time_hours: 'Avg Resolution Time (hours)'
   }
   return labels[key] || key
 }
