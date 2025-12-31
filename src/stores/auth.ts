@@ -7,12 +7,46 @@ import { authApi } from '@/services/supabaseApi'
 export const useAuthStore = defineStore('auth', () => {
   const user = ref<User | null>(null)
   const token = ref<string | null>(null)
+  const idleTimeoutMs = 15 * 60 * 1000
+  let idleTimer: number | null = null
+  let idleWatcherBound = false
 
   const isAuthenticated = computed(() => !!user.value && !!token.value)
   const role = computed(() => user.value?.role || null)
   const isStudent = computed(() => role.value === UserRole.Student)
   const isAdmin = computed(() => role.value === UserRole.Admin)
   const isWorker = computed(() => role.value === UserRole.Worker)
+
+  const activityEvents = ['mousemove', 'keydown', 'scroll', 'touchstart', 'click']
+
+  function clearIdleTimer() {
+    if (idleTimer !== null) {
+      window.clearTimeout(idleTimer)
+      idleTimer = null
+    }
+  }
+
+  function scheduleIdleLogout() {
+    clearIdleTimer()
+    idleTimer = window.setTimeout(async () => {
+      if (isAuthenticated.value) {
+        await logout()
+      }
+    }, idleTimeoutMs)
+  }
+
+  function handleActivity() {
+    if (!isAuthenticated.value) return
+    scheduleIdleLogout()
+  }
+
+  function ensureIdleWatcher() {
+    if (typeof window === 'undefined' || idleWatcherBound) return
+    activityEvents.forEach(eventName => {
+      window.addEventListener(eventName, handleActivity, { passive: true })
+    })
+    idleWatcherBound = true
+  }
 
   async function initSession() {
     await authApi.initSession(session => {
@@ -28,9 +62,12 @@ export const useAuthStore = defineStore('auth', () => {
           name: (session.user.user_metadata?.name as string | undefined) || session.user.email || ''
         }
         token.value = session.access_token ?? null
+        ensureIdleWatcher()
+        scheduleIdleLogout()
       } else {
         user.value = null
         token.value = null
+        clearIdleTimer()
       }
     })
   }
@@ -53,10 +90,15 @@ export const useAuthStore = defineStore('auth', () => {
     return authApi.forgotPassword(data.email)
   }
 
+  async function resetPassword(newPassword: string) {
+    return authApi.resetPassword(newPassword)
+  }
+
   async function logout() {
     await authApi.logout()
     user.value = null
     token.value = null
+    clearIdleTimer()
   }
 
   // Legacy compatibility: fetchCurrentUser now just re-inits session
@@ -75,6 +117,7 @@ export const useAuthStore = defineStore('auth', () => {
     login,
     register,
     forgotPassword,
+    resetPassword,
     logout,
     fetchCurrentUser
   }

@@ -106,6 +106,9 @@ export const authApi = {
   forgotPassword(email: string) {
     return supabase.auth.resetPasswordForEmail(email, { redirectTo: `${window.location.origin}/reset-password` })
   },
+  resetPassword(newPassword: string) {
+    return supabase.auth.updateUser({ password: newPassword })
+  },
   logout() {
     return supabase.auth.signOut()
   }

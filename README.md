@@ -22,7 +22,7 @@ src/
 ├── router/             # 路由配置
 │   └── index.ts        # 路由定义和角色守卫
 ├── services/           # API 服务
-│   └── api.ts          # Mock API 实现
+│   └── supabaseApi.ts  # Supabase API 实现
 ├── stores/             # Pinia stores
 │   ├── auth.ts         # 认证状态管理
 │   ├── tickets.ts      # 工单状态管理
@@ -59,6 +59,10 @@ src/
 - **管理员 (Admin)**: 查看所有工单、指派工单、改派工单、管理维修团队、导出工单
 - **维修工 (Worker)**: 查看分配的工单、接单、提交维修报告、标记完成
 
+### 认证与会话
+
+- 登录状态自动恢复，空闲 15 分钟自动登出
+
 ## 安装和运行
 
 ### 前置要求
@@ -92,39 +96,15 @@ pnpm build
 pnpm test
 ```
 
-## Mock 数据说明
+## Supabase 集成说明
 
-本项目使用纯前端的 Mock 实现，所有数据存储在内存中（`src/services/api.ts`）。数据在页面刷新后会重置。
+本项目使用 Supabase Auth + 数据库作为后端，前端通过 `src/services/supabaseApi.ts` 进行调用。
 
-### 测试账号
+### 账号与角色
 
-系统预置了以下测试账号：
-
-- **学生账号**
-  - 用户名: `student`
-  - 密码: `123456`
-  - 角色: Student
-
-- **管理员账号**
-  - 用户名: `admin`
-  - 密码: `123456`
-  - 角色: Admin
-
-- **维修工账号**
-  - 用户名: `worker`
-  - 密码: `123456`
-  - 角色: Worker
-
-### Mock API 说明
-
-所有 API 调用都在 `src/services/api.ts` 中实现，使用内存数组存储数据，并模拟网络延迟（300ms）。
-
-主要 API 包括：
-
-- **认证 API**: `login`, `register`, `forgotPassword`
-- **工单 API**: `listTickets`, `getTicket`, `createTicket`, `updateTicketStatus`, `assignTicket`, `reassignTicket`, `batchAssign`, `batchComplete`, `submitReport`, `confirmTicket`, `exportCSV`
-- **维修工 API**: `listWorkers`, `getWorker`, `createWorker`, `updateWorker`
-- **KPI API**: `getKPI`
+- 账号通过注册或 Supabase Dashboard 创建
+- 角色通过用户 metadata 或 `profiles.role` 管理（`student | admin | worker`）
+- 忘记密码流程会跳转到 `/reset-password`
 
 ## 开发指南
 
@@ -186,10 +166,9 @@ pnpm test -- --coverage
 
 ## 注意事项
 
-1. **纯前端实现**：本项目不包含后端代码，所有数据使用 Mock 实现
-2. **数据持久化**：页面刷新后，Mock 数据会重置
-3. **状态管理**：使用 Pinia 进行状态管理，确保数据流清晰
-4. **类型安全**：所有 API 和组件都使用 TypeScript 类型定义
+1. **后端依赖**：需要配置 Supabase 项目与环境变量
+2. **状态管理**：使用 Pinia 进行状态管理，确保数据流清晰
+3. **类型安全**：所有 API 和组件都使用 TypeScript 类型定义
 
 ## 后续开发计划
 
