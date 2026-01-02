@@ -2,6 +2,9 @@ import { supabase } from '@/lib/supabase'
 import { TicketStatus, Urgency, type CreateTicketRequest, type WorkerProfile, type Feedback, type CreateFeedbackRequest } from '@/types'
 import { toDbStatus, toAppStatus } from '@/utils/statusMapper'
 
+const functionBaseUrl = import.meta.env.VITE_SUPABASE_URL
+const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
+
 type RepairRow = {
   id: string
   title: string
@@ -28,6 +31,7 @@ type TimelineRow = {
   changed_by: string
   reason?: string | null
   created_at: string
+  operator?: { name: string | null } | null
 }
 
 type AttachmentRow = {
@@ -86,10 +90,12 @@ function mapUrgencyFromDb(dbUrgency: string): Urgency {
 }
 
 export const authApi = {
-  async initSession(onChange: (session: any) => void) {
+  async initSession(onChange: (session: any) => Promise<void> | void) {
     const { data } = await supabase.auth.getSession()
-    onChange(data.session)
-    supabase.auth.onAuthStateChange((_event, session) => onChange(session))
+    await onChange(data.session)
+    supabase.auth.onAuthStateChange((_event, session) => {
+      void onChange(session)
+    })
   },
   login(email: string, password: string) {
     return supabase.auth.signInWithPassword({ email, password })
@@ -213,7 +219,7 @@ export const repairsApi = {
   async timeline(repairId: string) {
     const { data, error } = await supabase
       .from('repair_timeline')
-      .select('*')
+      .select('*, operator:profiles(name)')
       .eq('repair_id', repairId)
       .order('created_at', { ascending: true })
     if (error) throw error
@@ -226,7 +232,14 @@ export const repairsApi = {
       .select('*')
       .eq('repair_id', repairId)
     if (error) throw error
-    return (data ?? []).map(mapAttachmentFromDb)
+    return Promise.all(
+      (data ?? []).map(async row => {
+        const { data: signed } = await supabase.storage
+          .from(row.bucket)
+          .createSignedUrl(row.path, 60 * 60)
+        return mapAttachmentFromDb(row, signed?.signedUrl)
+      })
+    )
   },
 
   async enrich(row: RepairRow) {
@@ -304,8 +317,37 @@ export const workersApi = {
   },
 
   // Placeholder: creating new workers requires admin/service role; implement when server-side key available.
-  async create(_data: Omit<WorkerProfile, 'id' | 'completedTickets' | 'rating' | 'userId'>) {
-    throw new Error('Create worker is not available with anon key. Please create user via Supabase Dashboard or service role.')
+  async create(data: Omit<WorkerProfile, 'id' | 'completedTickets' | 'rating' | 'userId'> & { email: string; password: string }) {
+    const { data: sessionData, error: sessionError } = await supabase.auth.getSession()
+    if (sessionError || !sessionData.session) {
+      throw new Error('Not authenticated')
+    }
+    if (!functionBaseUrl || !anonKey) {
+      throw new Error('Supabase env vars missing')
+    }
+    const response = await fetch(`${functionBaseUrl}/functions/v1/create-worker`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${sessionData.session.access_token}`,
+        apikey: anonKey,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        email: data.email,
+        password: data.password,
+        name: data.name,
+        department: data.department,
+        phone: data.phone
+      })
+    })
+    const result = await response.json().catch(() => ({}))
+    if (!response.ok) {
+      throw new Error(result?.error || 'Failed to create worker')
+    }
+    if (!result?.profile) {
+      throw new Error('Failed to create worker')
+    }
+    return mapWorkerFromDb(result.profile)
   }
 }
 
@@ -313,19 +355,32 @@ export const feedbackApi = {
   async fetchByTicket(ticketId: string): Promise<Feedback[]> {
     const { data, error } = await supabase.from('feedback').select('*').eq('repair_id', ticketId)
     if (error) throw error
-    return (data ?? []).map(mapFeedbackFromDb)
+    const { data: attachments } = await supabase
+      .from('attachments')
+      .select('*')
+      .eq('repair_id', ticketId)
+      .eq('type', 'feedback')
+    const attachmentUrls = await Promise.all(
+      (attachments ?? []).map(async row => {
+        const { data: signed } = await supabase.storage
+          .from(row.bucket)
+          .createSignedUrl(row.path, 60 * 60)
+        return signed?.signedUrl ?? `${row.bucket}/${row.path}`
+      })
+    )
+    return (data ?? []).map(row => mapFeedbackFromDb(row, attachmentUrls))
   },
 
   async create(payload: CreateFeedbackRequest & { ticketId: string }) {
     const userId = await requireUserId()
     const { data, error } = await supabase
       .from('feedback')
-      .insert({
+      .upsert({
         repair_id: payload.ticketId,
         student_id: userId,
         rating: payload.rating ?? null,
         content: payload.content ?? null
-      })
+      }, { onConflict: 'repair_id' })
       .select('*')
       .maybeSingle()
     if (error) throw error
@@ -370,12 +425,14 @@ function mapTimelineFromDb(row: TimelineRow) {
     repairId: row.repair_id,
     fromStatus: row.from_status ? toAppStatus(row.from_status) : null,
     toStatus: toAppStatus(row.to_status),
-  changedBy: row.changed_by,
-  reason: row.reason ?? undefined,
-  createdAt: row.created_at
+    changedBy: row.changed_by,
+    changedByName: row.operator?.name ?? row.changed_by,
+    reason: row.reason ?? undefined,
+    changedAt: row.created_at
+  }
 }
 
-function mapAttachmentFromDb(row: AttachmentRow) {
+function mapAttachmentFromDb(row: AttachmentRow, urlOverride?: string) {
   // For private bucket, use signed URL on demand. Here we return path.
   return {
     id: row.id,
@@ -384,7 +441,7 @@ function mapAttachmentFromDb(row: AttachmentRow) {
     type: row.type,
     bucket: row.bucket,
     path: row.path,
-    url: `${row.bucket}/${row.path}`,
+    url: urlOverride ?? `${row.bucket}/${row.path}`,
     createdAt: row.created_at
   }
 }
@@ -403,7 +460,7 @@ function mapWorkerFromDb(row: ProfileRow): WorkerProfile {
   }
 }
 
-function mapFeedbackFromDb(row: FeedbackRow): Feedback {
+function mapFeedbackFromDb(row: FeedbackRow, images: string[] = []): Feedback {
   return {
     id: row.id,
     ticketId: row.repair_id,
@@ -412,7 +469,6 @@ function mapFeedbackFromDb(row: FeedbackRow): Feedback {
     content: row.content ?? '',
     rating: row.rating ?? undefined,
     createdAt: row.created_at,
-    images: []
+    images
   }
-}
 }

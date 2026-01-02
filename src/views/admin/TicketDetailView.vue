@@ -41,6 +41,18 @@
           </button>
         </div>
       </div>
+      <div v-if="ticketStore.currentTicket.images && ticketStore.currentTicket.images.length > 0" class="card">
+        <h3>Repair Images</h3>
+        <div class="report-images">
+          <img
+            v-for="(img, index) in ticketStore.currentTicket.images"
+            :key="index"
+            :src="img"
+            alt="Repair image"
+            @click="openImagePreview(ticketStore.currentTicket.images, index)"
+          />
+        </div>
+      </div>
       <TicketStatusTimeline :status-history="ticketStore.currentTicket.statusHistory" />
       
       <!-- Repair Report Section -->

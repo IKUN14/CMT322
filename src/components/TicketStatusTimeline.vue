@@ -38,8 +38,11 @@ interface Props {
 
 const props = defineProps<Props>()
 
-const formatTime = (time: string) => {
-  return new Date(time).toLocaleString('en-US')
+const formatTime = (time?: string | null) => {
+  if (!time) return '-'
+  const date = new Date(time)
+  if (Number.isNaN(date.getTime())) return '-'
+  return date.toLocaleString('en-US')
 }
 </script>
 

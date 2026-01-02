@@ -23,6 +23,9 @@ create table if not exists public.profiles (
 create or replace function public.current_user_role()
 returns text
 language sql stable
+security definer
+set search_path = public
+set row_security = off
 as $$
   select role from public.profiles where id = auth.uid();
 $$;
@@ -345,6 +348,22 @@ for select using (id = auth.uid());
 drop policy if exists profiles_admin_select on public.profiles;
 create policy profiles_admin_select on public.profiles
 for select using (current_user_role() = 'admin');
+
+drop policy if exists profiles_timeline_participant_select on public.profiles;
+create policy profiles_timeline_participant_select on public.profiles
+for select using (
+  exists (
+    select 1
+    from public.repair_timeline t
+    join public.repairs r on r.id = t.repair_id
+    where t.changed_by = profiles.id
+      and (
+        current_user_role() = 'admin'
+        or r.created_by = auth.uid()
+        or r.assigned_worker_id = auth.uid()
+      )
+  )
+);
 
 drop policy if exists profiles_self_update on public.profiles;
 create policy profiles_self_update on public.profiles

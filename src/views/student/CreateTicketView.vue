@@ -53,6 +53,8 @@ import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useTicketStore } from '@/stores/tickets'
 import { Urgency, TicketStatus } from '@/types'
+import { attachmentsApi } from '@/services/supabaseApi'
+import { dataUrlToFile } from '@/utils/dataUrlToFile'
 import ImageUpload from '@/components/ImageUpload.vue'
 
 const router = useRouter()
@@ -78,6 +80,14 @@ const handleSubmit = async () => {
       ...form.value,
       scheduledTime: form.value.scheduledTime || undefined
     })
+    if (ticket && form.value.images.length > 0) {
+      await Promise.all(
+        form.value.images.map((image, index) => {
+          const file = dataUrlToFile(image, `repair-${Date.now()}-${index}.jpg`)
+          return attachmentsApi.upload(ticket.id, file, 'repair')
+        })
+      )
+    }
     // First create as draft, then automatically submit
     await ticketStore.updateTicketStatus({
       ticketId: ticket.id,

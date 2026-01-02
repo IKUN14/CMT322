@@ -41,8 +41,35 @@ export const useWorkerStore = defineStore('workers', () => {
     }
   }
 
-  async function createWorker() {
-    throw new Error('Create worker is not available with anon key. Use Supabase Dashboard to create users with role=worker.')
+  async function createWorker(payload: {
+    email: string
+    password: string
+    name: string
+    department?: string
+    phone?: string
+  }) {
+    loading.value = true
+    error.value = null
+    try {
+      const created = await workersApi.create({
+        email: payload.email,
+        password: payload.password,
+        name: payload.name,
+        department: payload.department ?? '',
+        phone: payload.phone ?? '',
+        status: 'available',
+        skills: []
+      })
+      if (created) {
+        workers.value.unshift(created)
+      }
+      return created
+    } catch (err: any) {
+      error.value = err.message || 'Failed to create worker'
+      throw err
+    } finally {
+      loading.value = false
+    }
   }
 
   return {

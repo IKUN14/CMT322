@@ -25,6 +25,18 @@
           </p>
         </div>
       </div>
+      <div v-if="ticketStore.currentTicket.images && ticketStore.currentTicket.images.length > 0" class="card">
+        <h3>Repair Images</h3>
+        <div class="report-images">
+          <img
+            v-for="(img, index) in ticketStore.currentTicket.images"
+            :key="index"
+            :src="img"
+            alt="Repair image"
+            @click="openImagePreview(ticketStore.currentTicket.images, index)"
+          />
+        </div>
+      </div>
       <TicketStatusTimeline :status-history="ticketStore.currentTicket.statusHistory" />
       
       <!-- Repair Report Section -->
@@ -165,6 +177,8 @@ import { TicketStatus } from '@/types'
 import TicketStatusTimeline from '@/components/TicketStatusTimeline.vue'
 import ImageUpload from '@/components/ImageUpload.vue'
 import ImagePreview from '@/components/ImagePreview.vue'
+import { attachmentsApi } from '@/services/supabaseApi'
+import { dataUrlToFile } from '@/utils/dataUrlToFile'
 
 const route = useRoute()
 const ticketStore = useTicketStore()
@@ -179,7 +193,7 @@ const previewImageIndex = ref(0)
 
 const feedbackForm = ref({
   content: '',
-  rating: 0,
+  rating: 5,
   images: [] as string[]
 })
 
@@ -207,6 +221,11 @@ const handleConfirm = async (approved: boolean) => {
 const handleSubmitFeedback = async () => {
   if (!ticketStore.currentTicket) return
 
+  if (!feedbackForm.value.rating || feedbackForm.value.rating < 1) {
+    feedbackError.value = 'Please select a rating'
+    return
+  }
+
   submittingFeedback.value = true
   feedbackError.value = ''
   
@@ -214,11 +233,19 @@ const handleSubmitFeedback = async () => {
     await feedbackStore.createFeedback({
       ticketId: ticketStore.currentTicket.id,
       content: feedbackForm.value.content,
-      rating: feedbackForm.value.rating > 0 ? feedbackForm.value.rating : undefined,
+      rating: feedbackForm.value.rating,
       images: feedbackForm.value.images.length > 0 ? feedbackForm.value.images : undefined
     })
+    if (feedbackForm.value.images.length > 0) {
+      await Promise.all(
+        feedbackForm.value.images.map((image, index) => {
+          const file = dataUrlToFile(image, `feedback-${Date.now()}-${index}.jpg`)
+          return attachmentsApi.upload(ticketStore.currentTicket!.id, file, 'feedback')
+        })
+      )
+    }
     
-    feedbackForm.value = { content: '', rating: 0, images: [] }
+    feedbackForm.value = { content: '', rating: 5, images: [] }
     showFeedbackDialog.value = false
     alert('Feedback submitted successfully')
     

@@ -4,7 +4,7 @@
     <div class="filters">
       <input v-model="search" type="text" class="input" placeholder="Search workers..." />
       <button @click="handleRefresh" class="btn btn-primary" :disabled="loading">Refresh</button>
-      <button @click="openAddDialog" class="btn btn-success" :disabled="true">Add Worker (Dashboard)</button>
+      <button @click="openAddDialog" class="btn btn-success" :disabled="loading">Add Worker</button>
     </div>
     <div class="worker-cards">
       <div v-for="worker in filteredWorkers" :key="worker.id" class="worker-card">
@@ -22,6 +22,45 @@
       </div>
       <div v-if="filteredWorkers.length === 0" class="empty">No workers available</div>
     </div>
+
+    <div v-if="showAddDialog" class="dialog-overlay" @click="closeAddDialog">
+      <div class="dialog-content" @click.stop>
+        <div class="dialog-header">
+          <h3>Add Worker</h3>
+          <button @click="closeAddDialog" class="close-btn">×</button>
+        </div>
+        <form @submit.prevent="handleCreateWorker" class="dialog-body">
+          <div class="form-group">
+            <label>Email *</label>
+            <input v-model="newWorker.email" type="email" class="input" required />
+          </div>
+          <div class="form-group">
+            <label>Password *</label>
+            <input v-model="newWorker.password" type="password" class="input" minlength="6" required />
+            <small class="form-hint">Minimum 6 characters</small>
+          </div>
+          <div class="form-group">
+            <label>Name *</label>
+            <input v-model="newWorker.name" type="text" class="input" required />
+          </div>
+          <div class="form-group">
+            <label>Department</label>
+            <input v-model="newWorker.department" type="text" class="input" />
+          </div>
+          <div class="form-group">
+            <label>Phone</label>
+            <input v-model="newWorker.phone" type="text" class="input" />
+          </div>
+          <div class="dialog-actions">
+            <button type="submit" class="btn btn-primary" :disabled="loading">
+              {{ loading ? 'Creating...' : 'Create' }}
+            </button>
+            <button type="button" class="btn" @click="closeAddDialog">Cancel</button>
+          </div>
+          <div v-if="createError" class="error-message">{{ createError }}</div>
+        </form>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -33,6 +72,15 @@ const workerStore = useWorkerStore()
 const search = ref('')
 const loading = computed(() => workerStore.loading)
 const workerStatuses = ref<Record<string, string>>({})
+const showAddDialog = ref(false)
+const createError = ref('')
+const newWorker = ref({
+  email: '',
+  password: '',
+  name: '',
+  department: '',
+  phone: ''
+})
 
 const filteredWorkers = computed(() => {
   if (!search.value) return workerStore.workers
@@ -66,7 +114,24 @@ const updateStatus = async (workerId: string) => {
 }
 
 const openAddDialog = () => {
-  alert('Please create worker users via Supabase Dashboard with role=worker')
+  createError.value = ''
+  showAddDialog.value = true
+}
+
+const closeAddDialog = () => {
+  showAddDialog.value = false
+  newWorker.value = { email: '', password: '', name: '', department: '', phone: '' }
+}
+
+const handleCreateWorker = async () => {
+  createError.value = ''
+  try {
+    await workerStore.createWorker({ ...newWorker.value })
+    await handleRefresh()
+    closeAddDialog()
+  } catch (err: any) {
+    createError.value = err.message || 'Failed to create worker'
+  }
 }
 
 watch(search, () => {

@@ -4,7 +4,7 @@
     <div class="kpi-cards">
       <div class="kpi-card" v-for="(value, key) in kpiData" :key="key">
         <div class="kpi-label">{{ getKpiLabel(key) }}</div>
-        <div class="kpi-value">{{ value }}</div>
+        <div class="kpi-value">{{ formatKpiValue(key, value) }}</div>
       </div>
     </div>
   </div>
@@ -36,6 +36,17 @@ const getKpiLabel = (key: string) => {
     avg_resolution_time_hours: 'Avg Resolution Time (hours)'
   }
   return labels[key] || key
+}
+
+const formatKpiValue = (key: string, value: unknown) => {
+  const numericValue = typeof value === 'number' ? value : Number(value)
+  if (Number.isNaN(numericValue)) {
+    return value ?? '-'
+  }
+  if (key === 'avgResolutionTime' || key === 'avg_resolution_time_hours') {
+    return numericValue.toFixed(2)
+  }
+  return numericValue
 }
 
 onMounted(async () => {

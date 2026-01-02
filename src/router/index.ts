@@ -109,8 +109,11 @@ const router = createRouter({
 })
 
 // Route guard
-router.beforeEach((to, from, next) => {
+router.beforeEach(async (to, from, next) => {
   const authStore = useAuthStore()
+  if (!authStore.initialized) {
+    await authStore.fetchCurrentUser()
+  }
 
   // Check if authentication is required
   if (to.meta.requiresAuth && !authStore.isAuthenticated) {

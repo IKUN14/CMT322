@@ -27,6 +27,18 @@
           <button @click="showReportDialog = true" class="btn btn-success">Submit Report</button>
         </div>
       </div>
+      <div v-if="ticketStore.currentTicket.images && ticketStore.currentTicket.images.length > 0" class="card">
+        <h3>Repair Images</h3>
+        <div class="report-images">
+          <img
+            v-for="(img, index) in ticketStore.currentTicket.images"
+            :key="index"
+            :src="img"
+            alt="Repair image"
+            @click="openImagePreview(ticketStore.currentTicket.images, index)"
+          />
+        </div>
+      </div>
       <TicketStatusTimeline :status-history="ticketStore.currentTicket.statusHistory" />
       
       <!-- Repair Report Section -->
@@ -48,6 +60,38 @@
             alt="Repair report image"
             @click="openImagePreview(ticketStore.currentTicket.reportImages, index)"
           />
+        </div>
+      </div>
+      
+      <!-- Feedback Section -->
+      <div class="card">
+        <div class="feedback-header">
+          <h3>Feedback</h3>
+        </div>
+        
+        <div v-if="feedbackStore.feedbacks.length === 0" class="empty-feedback">
+          No feedback yet
+        </div>
+        <div v-else class="feedback-list">
+          <div v-for="feedback in feedbackStore.feedbacks" :key="feedback.id" class="feedback-item">
+            <div class="feedback-meta">
+              <span class="feedback-user">{{ feedback.userName }}</span>
+              <span class="feedback-time">{{ formatTime(feedback.createdAt) }}</span>
+              <span v-if="feedback.rating" class="feedback-rating">
+                ⭐ {{ feedback.rating }}/5
+              </span>
+            </div>
+            <div class="feedback-content">{{ feedback.content }}</div>
+            <div v-if="feedback.images && feedback.images.length > 0" class="feedback-images">
+              <img 
+                v-for="(img, index) in feedback.images" 
+                :key="index" 
+                :src="img" 
+                alt="Feedback image"
+                @click="openImagePreview(feedback.images, index)"
+              />
+            </div>
+          </div>
         </div>
       </div>
       
@@ -98,14 +142,18 @@
 import { ref, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { useTicketStore } from '@/stores/tickets'
+import { useFeedbackStore } from '@/stores/feedback'
 import { getStatusLabel, getStatusColor, getStatusBgColor } from '@/utils/ticketStateMachine'
 import { TicketStatus } from '@/types'
 import TicketStatusTimeline from '@/components/TicketStatusTimeline.vue'
 import ImageUpload from '@/components/ImageUpload.vue'
+import { attachmentsApi } from '@/services/supabaseApi'
+import { dataUrlToFile } from '@/utils/dataUrlToFile'
 import ImagePreview from '@/components/ImagePreview.vue'
 
 const route = useRoute()
 const ticketStore = useTicketStore()
+const feedbackStore = useFeedbackStore()
 const showReportDialog = ref(false)
 const submitting = ref(false)
 const reportError = ref('')
@@ -147,6 +195,14 @@ const handleSubmitReport = async () => {
   reportError.value = ''
   
   try {
+    if (reportForm.value.images.length > 0) {
+      await Promise.all(
+        reportForm.value.images.map((image, index) => {
+          const file = dataUrlToFile(image, `report-${Date.now()}-${index}.jpg`)
+          return attachmentsApi.upload(ticketStore.currentTicket!.id, file, 'report')
+        })
+      )
+    }
     await ticketStore.submitReport({
       ticketId: ticketStore.currentTicket.id,
       report: reportForm.value.report,
@@ -168,9 +224,10 @@ const handleSubmitReport = async () => {
   }
 }
 
-onMounted(() => {
+onMounted(async () => {
   const id = route.params.id as string
-  ticketStore.fetchTicket(id)
+  await ticketStore.fetchTicket(id)
+  await feedbackStore.fetchFeedbackByTicket(id)
 })
 </script>
 
@@ -205,6 +262,88 @@ onMounted(() => {
   text-align: center;
   padding: 40px;
   color: #909399;
+}
+
+/* Feedback styles */
+.feedback-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.feedback-header h3 {
+  margin: 0;
+  color: #303133;
+}
+
+.empty-feedback {
+  text-align: center;
+  padding: 20px;
+  color: #909399;
+}
+
+.feedback-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.feedback-item {
+  padding: 16px;
+  background-color: #f5f7fa;
+  border-radius: 8px;
+  border-left: 3px solid #3b82f6;
+}
+
+.feedback-meta {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  margin-bottom: 8px;
+  flex-wrap: wrap;
+}
+
+.feedback-user {
+  font-weight: 600;
+  color: #303133;
+}
+
+.feedback-time {
+  color: #909399;
+  font-size: 14px;
+}
+
+.feedback-rating {
+  color: #f59e0b;
+  font-weight: 600;
+}
+
+.feedback-content {
+  color: #606266;
+  line-height: 1.6;
+  margin-bottom: 12px;
+}
+
+.feedback-images {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 12px;
+}
+
+.feedback-images img {
+  width: 100px;
+  height: 100px;
+  object-fit: cover;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.feedback-images img:hover {
+  transform: scale(1.05);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 
 /* Dialog styles */
