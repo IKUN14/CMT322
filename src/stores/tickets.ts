@@ -11,7 +11,7 @@ import type {
   ConfirmTicketRequest
 } from '@/types'
 import { TicketStatus } from '@/types'
-import { repairsApi } from '@/services/supabaseApi'
+import { repairsApi, kpiApi } from '@/services/supabaseApi'
 import { toDbStatus, toAppStatus } from '@/utils/statusMapper'
 
 export const useTicketStore = defineStore('tickets', () => {
@@ -243,11 +243,94 @@ export const useTicketStore = defineStore('tickets', () => {
 
   async function exportCSV(filter?: TicketFilter) {
     try {
-      return await repairsApi.list(filter) // For now, return list; could call kpiApi.exportRepairs for admin
+      const rows = await kpiApi.exportRepairs()
+      const filtered = applyExportFilter(rows, filter)
+      return buildCsv(filtered)
     } catch (error) {
       console.error('Failed to export CSV:', error)
       throw error
     }
+  }
+
+  function applyExportFilter(rows: any[], filter?: TicketFilter) {
+    if (!filter) return rows
+    return rows.filter(row => {
+      if (filter.status?.length) {
+        const allowed = filter.status.map(status => toDbStatus(status))
+        if (!allowed.includes(row.status)) return false
+      }
+      if (filter.urgency?.length && !filter.urgency.includes(toAppUrgency(row.urgency))) {
+        return false
+      }
+      if (filter.assignedTo && row.assigned_worker_id !== filter.assignedTo) return false
+      if (filter.createdBy && row.created_by !== filter.createdBy) return false
+      if (filter.dateRange?.start || filter.dateRange?.end) {
+        const created = new Date(row.created_at).getTime()
+        const start = filter.dateRange?.start ? new Date(filter.dateRange.start).getTime() : null
+        const end = filter.dateRange?.end ? new Date(filter.dateRange.end).getTime() : null
+        if (start && created < start) return false
+        if (end && created > end) return false
+      }
+      return true
+    })
+  }
+
+  function buildCsv(rows: any[]) {
+    const headers = [
+      'Repair ID',
+      'Title',
+      'Status',
+      'Urgency',
+      'Creator',
+      'Assignee',
+      'Created At',
+      'Updated At',
+      'Scheduled Time',
+      'Resolved At',
+      'Closed At',
+      'Canceled At'
+    ]
+    const csvRows = [headers.join(',')]
+    rows.forEach(row => {
+      const values = [
+        row.repair_id,
+        row.title,
+        toAppStatus(row.status),
+        toAppUrgency(row.urgency),
+        row.created_by_name ?? row.created_by,
+        row.assigned_worker_name ?? row.assigned_worker_id,
+        formatCsvDate(row.created_at),
+        formatCsvDate(row.updated_at),
+        formatCsvDate(row.scheduled_time),
+        formatCsvDate(row.resolved_at),
+        formatCsvDate(row.closed_at),
+        formatCsvDate(row.canceled_at)
+      ]
+      csvRows.push(values.map(escapeCsv).join(','))
+    })
+    return csvRows.join('\n')
+  }
+
+  function escapeCsv(value: unknown) {
+    const text = String(value ?? '')
+    if (text.includes('"') || text.includes(',') || text.includes('\n')) {
+      return `"${text.replace(/"/g, '""')}"`
+    }
+    return text
+  }
+
+  function formatCsvDate(value: unknown) {
+    if (!value) return ''
+    const date = new Date(String(value))
+    if (Number.isNaN(date.getTime())) return String(value)
+    return date.toISOString()
+  }
+
+  function toAppUrgency(urgency: string) {
+    const normalized = String(urgency ?? '').toLowerCase()
+    if (normalized === 'urgent') return 'Urgent'
+    if (normalized === 'emergency') return 'Emergency'
+    return 'Normal'
   }
 
   // Selection management

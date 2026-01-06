@@ -39,6 +39,13 @@
           >
             Accept
           </button>
+          <button
+            v-if="canReject"
+            @click="openRejectDialog"
+            class="btn btn-danger"
+          >
+            Reject
+          </button>
         </div>
       </div>
       <div v-if="ticketStore.currentTicket.images && ticketStore.currentTicket.images.length > 0" class="card">
@@ -152,6 +159,35 @@
           </form>
         </div>
       </div>
+
+      <!-- Reject Dialog -->
+      <div v-if="showRejectDialog" class="dialog-overlay" @click="closeRejectDialog">
+        <div class="dialog-content" @click.stop>
+          <div class="dialog-header">
+            <h3>Reject Repair Request</h3>
+            <button @click="closeRejectDialog" class="close-btn">×</button>
+          </div>
+          <form @submit.prevent="handleReject" class="dialog-body">
+            <div class="form-group">
+              <label>Rejection Reason *</label>
+              <textarea
+                v-model="rejectReason"
+                class="textarea"
+                placeholder="Please enter the reason for rejection"
+                rows="4"
+                required
+              ></textarea>
+            </div>
+            <div class="dialog-actions">
+              <button type="submit" class="btn btn-danger" :disabled="rejecting">
+                {{ rejecting ? 'Submitting...' : 'Confirm Rejection' }}
+              </button>
+              <button type="button" @click="closeRejectDialog" class="btn">Cancel</button>
+            </div>
+            <div v-if="rejectError" class="error-message">{{ rejectError }}</div>
+          </form>
+        </div>
+      </div>
       
       <!-- Image Preview -->
       <ImagePreview
@@ -181,6 +217,10 @@ const feedbackStore = useFeedbackStore()
 const showAssignDialog = ref(false)
 const assigning = ref(false)
 const assignError = ref('')
+const showRejectDialog = ref(false)
+const rejectReason = ref('')
+const rejectError = ref('')
+const rejecting = ref(false)
 const showImagePreview = ref(false)
 const previewImageList = ref<string[]>([])
 const previewImageIndex = ref(0)
@@ -208,6 +248,12 @@ const canAccept = computed(() => {
   return ticket.status === TicketStatus.Submitted
 })
 
+const canReject = computed(() => {
+  const ticket = ticketStore.currentTicket
+  if (!ticket) return false
+  return ticket.status === TicketStatus.Submitted
+})
+
 const handleAccept = async () => {
   if (!ticketStore.currentTicket) return
   
@@ -222,6 +268,44 @@ const handleAccept = async () => {
     await ticketStore.fetchTicket(ticketId)
   } catch (error: any) {
     alert(error.message || 'Operation failed')
+  }
+}
+
+const openRejectDialog = () => {
+  rejectReason.value = ''
+  rejectError.value = ''
+  showRejectDialog.value = true
+}
+
+const closeRejectDialog = () => {
+  showRejectDialog.value = false
+}
+
+const handleReject = async () => {
+  if (!ticketStore.currentTicket) return
+
+  const reason = rejectReason.value.trim()
+  if (!reason) {
+    rejectError.value = 'Please enter a rejection reason'
+    return
+  }
+
+  rejecting.value = true
+  rejectError.value = ''
+  try {
+    const ticketId = ticketStore.currentTicket.id
+    await ticketStore.updateTicketStatus({
+      ticketId,
+      status: TicketStatus.Canceled,
+      reason
+    })
+    alert('Repair request rejected')
+    showRejectDialog.value = false
+    await ticketStore.fetchTicket(ticketId)
+  } catch (error: any) {
+    rejectError.value = error.message || 'Operation failed'
+  } finally {
+    rejecting.value = false
   }
 }
 

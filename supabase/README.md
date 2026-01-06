@@ -32,7 +32,7 @@ This document adds a deployable Supabase backend that pairs with the Vue front-e
 - Trigger `validate_repair_transition` guards all status moves + timestamps:
   - Student: `draft→submitted`, `submitted/accepted→canceled`, `resolved→closed`, `resolved→in_progress` (reject requires `status_reason`).
   - Worker: `assigned→in_progress`, `in_progress→resolved` (must be current assignee).
-  - Admin: `submitted→accepted`, `accepted→assigned`, `accepted→canceled`, `assigned/in_progress→reassigned`.
+  - Admin: `submitted→accepted`, `submitted→canceled`, `accepted→assigned`, `accepted→canceled`, `assigned/in_progress→reassigned`.
 - `assigned_worker_id` required for assigned/in_progress/resolved states.
 - Timeline written by `log_repair_timeline` on insert/update.
 

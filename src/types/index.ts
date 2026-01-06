@@ -82,6 +82,7 @@ export interface Ticket {
   location: string
   urgency: Urgency
   status: TicketStatus
+  statusReason?: string
   scheduledTime?: string
   createdAt: string
   updatedAt: string

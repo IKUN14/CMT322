@@ -85,6 +85,12 @@
             </span>
           </span>
           <span class="created-at">Created: {{ formatTime(ticket.createdAt) }}</span>
+          <span
+            v-if="ticket.status === 'Canceled' && ticket.statusReason"
+            class="cancel-reason"
+          >
+            Reason: {{ ticket.statusReason }}
+          </span>
         </div>
       </div>
       <div v-if="ticketStore.tickets.length === 0" class="empty">
@@ -113,7 +119,8 @@ const statusLabels: Record<string, string> = {
   Submitted: 'Submitted',
   InProgress: 'In Progress',
   Resolved: 'Resolved',
-  Closed: 'Closed'
+  Closed: 'Closed',
+  Canceled: 'Canceled'
 }
 
 const filterLabel = computed(() => statusLabels[filterStatus.value] || 'All')
@@ -135,7 +142,8 @@ const openOptions = [
 
 const doneOptions = [
   { value: 'Resolved', label: 'Resolved', color: '#22c55e' },
-  { value: 'Closed', label: 'Closed', color: '#16a34a' }
+  { value: 'Closed', label: 'Closed', color: '#16a34a' },
+  { value: 'Canceled', label: 'Canceled', color: '#f56c6c' }
 ]
 
 const selectStatus = (status: TicketStatus | '') => {
@@ -367,6 +375,12 @@ onMounted(async () => {
 .created-at {
   margin-left: auto;
   text-align: right;
+}
+
+.cancel-reason {
+  flex-basis: 100%;
+  color: #ef4444;
+  font-weight: 500;
 }
 
 .loading,

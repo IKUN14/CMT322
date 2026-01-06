@@ -181,6 +181,7 @@ begin
 
   elsif role = 'admin' then
     allowed := (old.status = 'submitted' and new.status = 'accepted')
+            or (old.status = 'submitted' and new.status = 'canceled')
             or (old.status = 'accepted' and new.status = 'assigned')
             or (old.status = 'accepted' and new.status = 'canceled')
             or (old.status = 'assigned' and new.status = 'reassigned')

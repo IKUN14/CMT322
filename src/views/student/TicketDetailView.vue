@@ -23,6 +23,11 @@
           <p v-if="ticketStore.currentTicket.currentAssigneeName">
             <strong>Assignee:</strong>{{ ticketStore.currentTicket.currentAssigneeName }}
           </p>
+          <p
+            v-if="ticketStore.currentTicket.status === TicketStatus.Canceled && ticketStore.currentTicket.statusReason"
+          >
+            <strong>Reason:</strong>{{ ticketStore.currentTicket.statusReason }}
+          </p>
         </div>
       </div>
       <div v-if="ticketStore.currentTicket.images && ticketStore.currentTicket.images.length > 0" class="card">
@@ -38,6 +43,13 @@
         </div>
       </div>
       <TicketStatusTimeline :status-history="ticketStore.currentTicket.statusHistory" />
+
+      <div v-if="canCancel" class="card">
+        <h3>Request Actions</h3>
+        <div class="form-actions">
+          <button @click="openReasonDialog('cancel')" class="btn btn-danger">Cancel Request</button>
+        </div>
+      </div>
       
       <!-- Repair Report Section -->
       <div v-if="ticketStore.currentTicket.report || (ticketStore.currentTicket.reportImages && ticketStore.currentTicket.reportImages.length > 0)" class="card">
@@ -69,7 +81,7 @@
         <h3>Acceptance</h3>
         <div class="form-actions">
           <button @click="handleConfirm(true)" class="btn btn-success">Approve</button>
-          <button @click="handleConfirm(false)" class="btn btn-danger">Reject</button>
+          <button @click="openReasonDialog('reject')" class="btn btn-danger">Reject</button>
         </div>
       </div>
 
@@ -160,6 +172,35 @@
           </form>
         </div>
       </div>
+
+      <!-- Reason Dialog -->
+      <div v-if="showReasonDialog" class="dialog-overlay" @click="closeReasonDialog">
+        <div class="dialog-content" @click.stop>
+          <div class="dialog-header">
+            <h3>{{ reasonDialogTitle }}</h3>
+            <button @click="closeReasonDialog" class="close-btn">×</button>
+          </div>
+          <form @submit.prevent="handleReasonSubmit" class="dialog-body">
+            <div class="form-group">
+              <label>{{ reasonDialogLabel }}</label>
+              <textarea
+                v-model="reasonForm.reason"
+                class="textarea"
+                :placeholder="reasonDialogPlaceholder"
+                required
+                rows="4"
+              ></textarea>
+            </div>
+            <div class="dialog-actions">
+              <button type="submit" class="btn btn-danger" :disabled="submittingReason">
+                {{ submittingReason ? 'Submitting...' : reasonDialogActionLabel }}
+              </button>
+              <button type="button" @click="closeReasonDialog" class="btn">Cancel</button>
+            </div>
+            <div v-if="reasonError" class="error-message">{{ reasonError }}</div>
+          </form>
+        </div>
+      </div>
       
       <!-- Image Preview -->
       <ImagePreview
@@ -172,11 +213,11 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { useRoute } from 'vue-router'
 import { useTicketStore } from '@/stores/tickets'
 import { useFeedbackStore } from '@/stores/feedback'
-import { getStatusLabel, getStatusColor, getStatusBgColor } from '@/utils/ticketStateMachine'
+import { getStatusLabel, getStatusColor, getStatusBgColor, canStudentCancel } from '@/utils/ticketStateMachine'
 import { TicketStatus } from '@/types'
 import TicketStatusTimeline from '@/components/TicketStatusTimeline.vue'
 import ImageUpload from '@/components/ImageUpload.vue'
@@ -191,6 +232,10 @@ const feedbackStore = useFeedbackStore()
 const showFeedbackDialog = ref(false)
 const submittingFeedback = ref(false)
 const feedbackError = ref('')
+const showReasonDialog = ref(false)
+const submittingReason = ref(false)
+const reasonError = ref('')
+const reasonMode = ref<'cancel' | 'reject'>('cancel')
 const showImagePreview = ref(false)
 const previewImageList = ref<string[]>([])
 const previewImageIndex = ref(0)
@@ -201,21 +246,94 @@ const feedbackForm = ref({
   images: [] as string[]
 })
 
+const reasonForm = ref({
+  reason: ''
+})
+
+const canCancel = computed(() => {
+  const ticket = ticketStore.currentTicket
+  if (!ticket) return false
+  return canStudentCancel(ticket.status)
+})
+
+const reasonDialogTitle = computed(() => {
+  return reasonMode.value === 'cancel' ? 'Cancel Repair Request' : 'Reject Repair'
+})
+
+const reasonDialogLabel = computed(() => {
+  return reasonMode.value === 'cancel' ? 'Cancellation Reason *' : 'Rejection Reason *'
+})
+
+const reasonDialogPlaceholder = computed(() => {
+  return reasonMode.value === 'cancel'
+    ? 'Please share why you want to cancel this request'
+    : 'Please share why you are rejecting this repair'
+})
+
+const reasonDialogActionLabel = computed(() => {
+  return reasonMode.value === 'cancel' ? 'Confirm Cancel' : 'Submit Rejection'
+})
+
 const formatTime = (time: string) => {
   return new Date(time).toLocaleString('en-US')
 }
 
-const handleConfirm = async (approved: boolean) => {
-  const reason = approved ? undefined : prompt('Please enter the reason for rejection:')
-  if (!approved && !reason) return
+const openReasonDialog = (mode: 'cancel' | 'reject') => {
+  reasonMode.value = mode
+  reasonForm.value.reason = ''
+  reasonError.value = ''
+  showReasonDialog.value = true
+}
 
+const closeReasonDialog = () => {
+  showReasonDialog.value = false
+}
+
+const handleReasonSubmit = async () => {
+  if (!ticketStore.currentTicket) return
+
+  const reason = reasonForm.value.reason.trim()
+  if (!reason) {
+    reasonError.value = 'Please enter a reason'
+    return
+  }
+
+  submittingReason.value = true
+  reasonError.value = ''
+  try {
+    const ticketId = ticketStore.currentTicket.id
+    if (reasonMode.value === 'cancel') {
+      await ticketStore.updateTicketStatus({
+        ticketId,
+        status: TicketStatus.Canceled,
+        reason
+      })
+      alert('Repair request canceled')
+    } else {
+      await ticketStore.confirmTicket({
+        ticketId,
+        approved: false,
+        reason
+      })
+      alert('Rejection reason submitted')
+    }
+    showReasonDialog.value = false
+    await ticketStore.fetchTicket(ticketId)
+  } catch (error: any) {
+    alert(error.message || 'Operation failed')
+  } finally {
+    submittingReason.value = false
+  }
+}
+
+const handleConfirm = async (approved: boolean) => {
   try {
     await ticketStore.confirmTicket({
       ticketId: ticketStore.currentTicket!.id,
       approved,
-      reason: reason || undefined
+      reason: undefined
     })
-    alert(approved ? 'Approved' : 'Rejection reason submitted')
+    alert('Approved')
     await ticketStore.fetchTicket(ticketStore.currentTicket!.id)
   } catch (error: any) {
     alert(error.message || 'Operation failed')

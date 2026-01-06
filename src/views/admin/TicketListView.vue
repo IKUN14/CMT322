@@ -133,7 +133,8 @@ const statusLabels: Record<string, string> = {
   InProgress: 'In Progress',
   Reassigned: 'Reassigned',
   Resolved: 'Resolved',
-  Closed: 'Closed'
+  Closed: 'Closed',
+  Canceled: 'Canceled'
 }
 
 const filterLabel = computed(() => statusLabels[filterStatus.value] || 'All')
@@ -158,7 +159,8 @@ const openOptions = [
 
 const doneOptions = [
   { value: 'Resolved', label: 'Resolved', color: '#22c55e' },
-  { value: 'Closed', label: 'Closed', color: '#16a34a' }
+  { value: 'Closed', label: 'Closed', color: '#16a34a' },
+  { value: 'Canceled', label: 'Canceled', color: '#f56c6c' }
 ]
 
 const selectStatus = (status: TicketStatus | '') => {
@@ -199,7 +201,9 @@ watch(filterStatus, (newStatus) => {
 
 const handleExport = async () => {
   try {
-    const csv = await ticketStore.exportCSV()
+    const csv = await ticketStore.exportCSV(
+      filterStatus.value ? { status: [filterStatus.value] } : undefined
+    )
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
     const link = document.createElement('a')
     link.href = URL.createObjectURL(blob)
