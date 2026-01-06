@@ -168,7 +168,12 @@ const formatTime = (time: string) => {
 }
 
 const refreshCounts = async () => {
-  allTickets.value = await repairsApi.list()
+  try {
+    allTickets.value = await repairsApi.list()
+  } catch (err) {
+    console.warn('Failed to refresh status counts, falling back to visible list.', err)
+    allTickets.value = [...ticketStore.tickets]
+  }
 }
 
 watch(filterStatus, () => {

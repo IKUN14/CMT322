@@ -176,7 +176,7 @@ begin
     if old.assigned_worker_id is distinct from auth.uid() then
       raise exception 'Worker not assigned to this repair';
     end if;
-    allowed := (old.status = 'assigned' and new.status = 'in_progress')
+    allowed := (old.status in ('assigned','reassigned') and new.status = 'in_progress')
             or (old.status = 'in_progress' and new.status = 'resolved');
 
   elsif role = 'admin' then
@@ -275,7 +275,7 @@ begin
     count(*) as total_repairs,
     count(*) filter (where status in ('submitted','accepted','assigned','reassigned')) as pending_count,
     count(*) filter (where status = 'in_progress') as in_progress_count,
-    count(*) filter (where status = 'resolved') as resolved_count,
+    count(*) filter (where status in ('resolved','closed')) as resolved_count,
     count(*) filter (where urgency = 'urgent') as urgent_repairs_count,
     avg(extract(epoch from (resolved_at - created_at)) / 3600)::numeric as avg_resolution_time_hours
   from scoped;
@@ -400,11 +400,17 @@ for insert with check (current_user_role() = 'admin');
 
 drop policy if exists repairs_student_update on public.repairs;
 create policy repairs_student_update on public.repairs
-for update using (current_user_role() = 'student' and created_by = auth.uid());
+for update using (
+  current_user_role() = 'student'
+  and created_by = auth.uid()
+);
 
 drop policy if exists repairs_worker_update on public.repairs;
 create policy repairs_worker_update on public.repairs
-for update using (current_user_role() = 'worker' and assigned_worker_id = auth.uid());
+for update using (
+  current_user_role() = 'worker'
+  and assigned_worker_id = auth.uid()
+);
 
 drop policy if exists repairs_admin_update on public.repairs;
 create policy repairs_admin_update on public.repairs

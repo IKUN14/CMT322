@@ -108,7 +108,7 @@ export const useAuthStore = defineStore('auth', () => {
 
   async function register(data: RegisterRequest) {
     const normalizedRole = data.role.toLowerCase() as 'student' | 'admin' | 'worker'
-    const res = await authApi.register(data.email, data.password, normalizedRole, data.name)    
+    const res = await authApi.register(data.email, data.password, normalizedRole, data.name)
     await initSession()
     return res
   }

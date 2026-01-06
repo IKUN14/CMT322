@@ -144,11 +144,42 @@
         </div>
       </div>
     </div>
-    <div v-else class="kpi-cards">
-      <div class="kpi-card" v-for="(value, key) in kpiData" :key="key">
-        <div class="kpi-label">{{ getKpiLabel(key) }}</div>
-        <div class="kpi-value">{{ formatKpiValue(key, value) }}</div>
+    <div v-else class="student-dashboard">
+      <div class="kpi-cards">
+        <div class="kpi-card" v-for="(value, key) in kpiData" :key="key">
+          <div class="kpi-label">{{ getKpiLabel(key) }}</div>
+          <div class="kpi-value">{{ formatKpiValue(key, value) }}</div>
+        </div>
       </div>
+      <section class="panel recent-panel">
+        <div class="panel-header">
+          <h3>Recent Repairs</h3>
+          <span class="panel-sub">Latest 3 submissions</span>
+        </div>
+        <div v-if="recentRepairs.length === 0" class="empty-text">No repairs yet.</div>
+        <div v-else class="recent-list">
+          <button
+            v-for="ticket in recentRepairs"
+            :key="ticket.id"
+            class="recent-item"
+            @click="openStudentTicket(ticket.id)"
+          >
+            <div class="recent-main">
+              <div>
+                <h4>{{ ticket.title }}</h4>
+                <p>{{ ticket.location }}</p>
+              </div>
+              <span class="status-pill" :class="statusClass(ticket.status)">{{ ticket.status }}</span>
+            </div>
+            <div class="recent-meta">
+              <span class="urgency-pill" :class="`urgency-${ticket.urgency.toLowerCase()}`">
+                {{ ticket.urgency }}
+              </span>
+              <span>{{ formatDate(ticket.createdAt) }}</span>
+            </div>
+          </button>
+        </div>
+      </section>
     </div>
   </div>
 </template>
@@ -395,6 +426,12 @@ const queueItems = computed(() => {
     })
 })
 
+const recentRepairs = computed(() => {
+  return [...dashboardTickets.value]
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+    .slice(0, 3)
+})
+
 const formatWaiting = (createdAt: string) => {
   const diff = Date.now() - new Date(createdAt).getTime()
   const hours = Math.max(Math.floor(diff / (1000 * 60 * 60)), 0)
@@ -402,6 +439,21 @@ const formatWaiting = (createdAt: string) => {
   if (hours < 24) return `Waiting ${hours}h`
   const days = Math.floor(hours / 24)
   return `Waiting ${days}d`
+}
+
+const formatDate = (value: string) => {
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return value
+  return date.toLocaleDateString()
+}
+
+const statusClass = (status: string) => {
+  const normalized = status.toLowerCase()
+  return `status-${normalized}`
+}
+
+const openStudentTicket = (id: string) => {
+  router.push(`/student/tickets/${id}`)
 }
 
 const openTicket = (id: string) => {
@@ -440,6 +492,8 @@ onMounted(async () => {
     }
     if (isWorker.value || isAdmin.value) {
       await refreshDashboardTickets()
+    } else {
+      await refreshDashboardTickets()
     }
   } catch (error) {
     console.error('Failed to load KPI:', error)
@@ -461,6 +515,14 @@ onMounted(async () => {
 
 .dashboard-shell {
   max-width: 1320px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.student-dashboard {
+  max-width: 1080px;
   margin: 0 auto;
   display: flex;
   flex-direction: column;
@@ -611,6 +673,115 @@ onMounted(async () => {
   display: flex;
   flex-direction: column;
   gap: 12px;
+}
+
+.recent-panel {
+  min-height: 260px;
+}
+
+.recent-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.recent-item {
+  border: 1px solid rgba(39, 83, 231, 0.08);
+  background: #ffffff;
+  border-radius: 12px;
+  padding: 12px 14px;
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.recent-item:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 18px rgba(15, 27, 61, 0.12);
+}
+
+.recent-main {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.recent-main h4 {
+  margin: 0;
+  font-size: 16px;
+  color: #0f1b3d;
+}
+
+.recent-main p {
+  margin: 4px 0 0;
+  color: #5f6b8a;
+  font-size: 13px;
+}
+
+.recent-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 12px;
+  color: #5f6b8a;
+}
+
+.status-pill {
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: capitalize;
+}
+
+.status-submitted {
+  background: rgba(39, 83, 231, 0.12);
+  color: #2753e7;
+}
+
+.status-accepted,
+.status-assigned,
+.status-reassigned {
+  background: rgba(255, 168, 0, 0.16);
+  color: #b45b00;
+}
+
+.status-in_progress {
+  background: rgba(28, 122, 255, 0.16);
+  color: #1c7aff;
+}
+
+.status-resolved,
+.status-closed {
+  background: rgba(30, 181, 80, 0.16);
+  color: #1e8f4c;
+}
+
+.urgency-pill {
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.urgency-normal {
+  background: rgba(96, 106, 135, 0.12);
+  color: #5f6b8a;
+}
+
+.urgency-urgent {
+  background: rgba(255, 140, 0, 0.16);
+  color: #c46200;
+}
+
+.urgency-emergency {
+  background: rgba(231, 76, 60, 0.16);
+  color: #c0392b;
 }
 
 .queue-item {

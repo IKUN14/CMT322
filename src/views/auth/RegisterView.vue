@@ -40,11 +40,9 @@
 
 <script setup lang="ts">
 import { ref } from 'vue'
-import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { UserRole } from '@/types'
 
-const router = useRouter()
 const authStore = useAuthStore()
 
 const form = ref({
@@ -63,7 +61,6 @@ const handleRegister = async () => {
   error.value = ''
   try {
     await authStore.register(form.value)
-    router.push('/dashboard')
   } catch (err: any) {
     error.value = err.message || 'Registration failed'
   } finally {
