@@ -171,8 +171,7 @@
             <div class="form-group">
               <label>Rejection Reason *</label>
               <textarea
-                v-model="rejectReason"
-                class="textarea"
+                v-model="rejectReason"                class="textarea"
                 placeholder="Please enter the reason for rejection"
                 rows="4"
                 required
