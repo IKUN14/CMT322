@@ -85,6 +85,9 @@ const handleSubmit = async () => {
       ...form.value,
       scheduledTime: form.value.scheduledTime || undefined
     })
+    if (!ticket) {
+      throw new Error('Failed to create ticket')
+    }
     if (ticket && form.value.images.length > 0) {
       await Promise.all(
         form.value.images.map((image, index) => {

@@ -45,8 +45,11 @@ const handleForgotPassword = async () => {
   error.value = ''
   success.value = ''
   try {
-    const result = await authStore.forgotPassword(form.value)
-    success.value = result.message
+    const { error: resetError } = await authStore.forgotPassword(form.value)
+    if (resetError) {
+      throw resetError
+    }
+    success.value = 'Password reset email sent. Please check your inbox.'
   } catch (err: any) {
     error.value = err.message || 'Failed to send'
   } finally {

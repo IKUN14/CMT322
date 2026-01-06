@@ -471,7 +471,7 @@ function mapRepairFromDb(
 function mapTimelineFromDb(row: TimelineRow) {
   return {
     id: row.id,
-    repairId: row.repair_id,
+    ticketId: row.repair_id,
     fromStatus: row.from_status ? toAppStatus(row.from_status) : null,
     toStatus: toAppStatus(row.to_status),
     changedBy: row.changed_by,

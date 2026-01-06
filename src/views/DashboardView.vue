@@ -408,7 +408,6 @@ const queueItems = computed(() => {
     .slice(0, 5)
     .map(ticket => {
       const waiting = formatWaiting(ticket.createdAt)
-      const isPending = ticket.status === TicketStatus.Assigned || ticket.status === TicketStatus.Submitted
       const statusLabel = ticket.status === TicketStatus.Submitted ? 'Submitted' : ticket.status === TicketStatus.Assigned ? 'Pending' : 'In Progress'
       return {
         id: ticket.id,

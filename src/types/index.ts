@@ -65,7 +65,7 @@ export interface AssignmentRecord {
 export interface StatusHistory {
   id: string
   ticketId: string
-  fromStatus: TicketStatus
+  fromStatus: TicketStatus | null
   toStatus: TicketStatus
   changedAt: string
   changedBy: string
@@ -94,10 +94,10 @@ export interface Ticket {
   statusHistory: StatusHistory[]
   report?: string
   reportImages?: string[]
-  completedAt?: string
-  confirmedAt?: string
-  cancelReason?: string
-  rejectReason?: string
+  feedbackImages?: string[]
+  resolvedAt?: string
+  closedAt?: string
+  canceledAt?: string
 }
 
 // KPI metrics

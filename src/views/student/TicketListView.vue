@@ -105,7 +105,7 @@ import { ref, onMounted, computed, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useTicketStore } from '@/stores/tickets'
 import { getStatusLabel, getStatusColor, getStatusBgColor, getUrgencyColor, getUrgencyBgColor } from '@/utils/ticketStateMachine'
-import type { Ticket, TicketStatus } from '@/types'
+import { TicketStatus, type Ticket } from '@/types'
 import { repairsApi } from '@/services/supabaseApi'
 
 const router = useRouter()
@@ -136,14 +136,14 @@ const statusCounts = computed(() => {
 })
 
 const openOptions = [
-  { value: 'Submitted', label: 'Submitted', color: '#60a5fa' },
-  { value: 'InProgress', label: 'In Progress', color: '#2563eb' }
+  { value: TicketStatus.Submitted, label: 'Submitted', color: '#60a5fa' },
+  { value: TicketStatus.InProgress, label: 'In Progress', color: '#2563eb' }
 ]
 
 const doneOptions = [
-  { value: 'Resolved', label: 'Resolved', color: '#22c55e' },
-  { value: 'Closed', label: 'Closed', color: '#16a34a' },
-  { value: 'Canceled', label: 'Canceled', color: '#f56c6c' }
+  { value: TicketStatus.Resolved, label: 'Resolved', color: '#22c55e' },
+  { value: TicketStatus.Closed, label: 'Closed', color: '#16a34a' },
+  { value: TicketStatus.Canceled, label: 'Canceled', color: '#f56c6c' }
 ]
 
 const selectStatus = (status: TicketStatus | '') => {

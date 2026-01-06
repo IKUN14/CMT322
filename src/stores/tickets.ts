@@ -10,7 +10,7 @@ import type {
   SubmitReportRequest,
   ConfirmTicketRequest
 } from '@/types'
-import { TicketStatus } from '@/types'
+import { TicketStatus, Urgency } from '@/types'
 import { repairsApi, kpiApi } from '@/services/supabaseApi'
 import { toDbStatus, toAppStatus } from '@/utils/statusMapper'
 
@@ -90,6 +90,9 @@ export const useTicketStore = defineStore('tickets', () => {
     loading.value = true
     try {
       const ticket = await repairsApi.updateStatus(data.ticketId, data.status, data.reason)
+      if (!ticket) {
+        throw new Error('Ticket not found')
+      }
       // Update the ticket in the list
       const index = tickets.value.findIndex(t => t.id === ticket.id)
       if (index !== -1) {
@@ -112,6 +115,9 @@ export const useTicketStore = defineStore('tickets', () => {
     loading.value = true
     try {
       const ticket = await repairsApi.assign(data.ticketId, data.workerId, data.reason)
+      if (!ticket) {
+        throw new Error('Ticket not found')
+      }
       const index = tickets.value.findIndex(t => t.id === ticket.id)
       if (index !== -1) {
         tickets.value[index] = { ...ticket }
@@ -132,6 +138,9 @@ export const useTicketStore = defineStore('tickets', () => {
     loading.value = true
     try {
       const ticket = await repairsApi.reassign(data.ticketId, data.workerId, data.reason)
+      if (!ticket) {
+        throw new Error('Ticket not found')
+      }
       const index = tickets.value.findIndex(t => t.id === ticket.id)
       if (index !== -1) {
         tickets.value[index] = { ...ticket }
@@ -201,6 +210,9 @@ export const useTicketStore = defineStore('tickets', () => {
     loading.value = true
     try {
       const ticket = await repairsApi.submitReport(data.ticketId, data.report)
+      if (!ticket) {
+        throw new Error('Ticket not found')
+      }
       const index = tickets.value.findIndex(t => t.id === ticket.id)
       if (index !== -1) {
         tickets.value[index] = ticket
@@ -225,6 +237,9 @@ export const useTicketStore = defineStore('tickets', () => {
         data.approved ? TicketStatus.Closed : TicketStatus.InProgress,
         data.reason
       )
+      if (!ticket) {
+        throw new Error('Ticket not found')
+      }
       const index = tickets.value.findIndex(t => t.id === ticket.id)
       if (index !== -1) {
         tickets.value[index] = ticket
@@ -326,11 +341,11 @@ export const useTicketStore = defineStore('tickets', () => {
     return date.toISOString()
   }
 
-  function toAppUrgency(urgency: string) {
+  function toAppUrgency(urgency: string): Urgency {
     const normalized = String(urgency ?? '').toLowerCase()
-    if (normalized === 'urgent') return 'Urgent'
-    if (normalized === 'emergency') return 'Emergency'
-    return 'Normal'
+    if (normalized === 'urgent') return Urgency.Urgent
+    if (normalized === 'emergency') return Urgency.Emergency
+    return Urgency.Normal
   }
 
   // Selection management

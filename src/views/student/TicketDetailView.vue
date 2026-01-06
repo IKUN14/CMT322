@@ -55,8 +55,8 @@
       <div v-if="ticketStore.currentTicket.report || (ticketStore.currentTicket.reportImages && ticketStore.currentTicket.reportImages.length > 0)" class="card">
         <div class="report-header">
           <h3>Repair Report</h3>
-          <span v-if="ticketStore.currentTicket.completedAt" class="report-time">
-            Completed: {{ formatTime(ticketStore.currentTicket.completedAt) }}
+          <span v-if="ticketStore.currentTicket.resolvedAt" class="report-time">
+            Completed: {{ formatTime(ticketStore.currentTicket.resolvedAt) }}
           </span>
         </div>
         <div v-if="ticketStore.currentTicket.currentAssigneeName" class="report-meta">

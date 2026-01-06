@@ -274,16 +274,6 @@ const scrollToRoles = () => {
   }
 }
 
-/**
- * 根据用户角色返回对应的工单页面路由路径
- * @returns {string} 路由路径 - 管理员返回'/admin/tickets'，工作人员返回'/worker/tickets'，学生返回'/student/tickets'
- */
-const primaryRoute = computed(() => {
-  if (authStore.isAdmin) return '/admin/tickets'
-  if (authStore.isWorker) return '/worker/tickets'
-  return '/student/tickets'
-})
-
 const quickActions = computed(() => {
   if (authStore.isAdmin) {
     return [
