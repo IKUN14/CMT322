@@ -18,6 +18,7 @@
         <div class="form-group">
           <label>Password</label>
           <input v-model="form.password" type="password" class="input" placeholder="Please enter password" required />
+          <p class="field-hint">Use at least 6 characters. Letters, numbers, and symbols are supported.</p>
         </div>
         <div class="form-group">
           <label>Role</label>
@@ -35,6 +36,7 @@
         <div v-if="error" class="error-message">{{ error }}</div>
       </form>
     </div>
+    <div v-if="toastMessage" :class="['toast', toastTypeClass]">{{ toastMessage }}</div>
   </div>
 </template>
 
@@ -55,17 +57,31 @@ const form = ref({
 
 const loading = ref(false)
 const error = ref('')
+const toastMessage = ref('')
+const toastTypeClass = ref<'toast-success' | 'toast-error'>('toast-success')
+let toastTimer: number | undefined
 
 const handleRegister = async () => {
   loading.value = true
   error.value = ''
   try {
     await authStore.register(form.value)
+    showToast('Registration successful. Please check your email if confirmation is required.', 'success')
   } catch (err: any) {
     error.value = err.message || 'Registration failed'
+    showToast(error.value, 'error')
   } finally {
     loading.value = false
   }
+}
+
+const showToast = (message: string, type: 'success' | 'error') => {
+  toastMessage.value = message
+  toastTypeClass.value = type === 'success' ? 'toast-success' : 'toast-error'
+  if (toastTimer) window.clearTimeout(toastTimer)
+  toastTimer = window.setTimeout(() => {
+    toastMessage.value = ''
+  }, 3000)
 }
 </script>
 
@@ -121,6 +137,12 @@ const handleRegister = async () => {
   font-size: 14px;
 }
 
+.field-hint {
+  margin-top: 6px;
+  font-size: 12px;
+  color: #909399;
+}
+
 .form-actions {
   display: flex;
   flex-direction: column;
@@ -163,6 +185,12 @@ const handleRegister = async () => {
   background-color: #f0f9eb;
   color: #67c23a;
   border: 1px solid #c2e7b0;
+}
+
+.toast-error {
+  background-color: #fef0f0;
+  color: #f56c6c;
+  border: 1px solid #fbc4c4;
 }
 
 </style>
