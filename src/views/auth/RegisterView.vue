@@ -65,8 +65,12 @@ const handleRegister = async () => {
   loading.value = true
   error.value = ''
   try {
-    await authStore.register(form.value)
-    showToast('Registration successful. Please check your email if confirmation is required.', 'success')
+    const result = await authStore.register(form.value)
+    const needsEmailConfirm = !result?.data?.session
+    const successMessage = needsEmailConfirm
+      ? 'Registration successful. Please check your email to confirm.'
+      : 'Registration successful.'
+    showToast(successMessage, 'success')
   } catch (err: any) {
     error.value = err.message || 'Registration failed'
     showToast(error.value, 'error')

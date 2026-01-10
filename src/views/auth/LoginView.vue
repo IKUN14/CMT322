@@ -33,6 +33,7 @@
         <div v-if="error" class="error-message">{{ error }}</div>
       </form>
     </div>
+    <div v-if="toastMessage" :class="['toast', toastTypeClass]">{{ toastMessage }}</div>
   </div>
 </template>
 
@@ -52,19 +53,33 @@ const form = ref({
 
 const loading = ref(false)
 const error = ref('')
+const toastMessage = ref('')
+const toastTypeClass = ref<'toast-success' | 'toast-error'>('toast-success')
+let toastTimer: number | undefined
 
 const handleLogin = async () => {
   loading.value = true
   error.value = ''
   try {
     await authStore.login(form.value)
+    showToast('Login successful.', 'success')
     const redirect = (route.query.redirect as string) || '/dashboard'
     router.push(redirect)
   } catch (err: any) {
     error.value = err.message || 'Login failed'
+    showToast(error.value, 'error')
   } finally {
     loading.value = false
   }
+}
+
+const showToast = (message: string, type: 'success' | 'error') => {
+  toastMessage.value = message
+  toastTypeClass.value = type === 'success' ? 'toast-success' : 'toast-error'
+  if (toastTimer) window.clearTimeout(toastTimer)
+  toastTimer = window.setTimeout(() => {
+    toastMessage.value = ''
+  }, 3000)
 }
 </script>
 
@@ -145,5 +160,28 @@ const handleLogin = async () => {
   color: #f56c6c;
   border-radius: 4px;
   font-size: 14px;
+}
+
+.toast {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  padding: 12px 16px;
+  border-radius: 8px;
+  font-size: 14px;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.2);
+  z-index: 10;
+}
+
+.toast-success {
+  background-color: #f0f9eb;
+  color: #67c23a;
+  border: 1px solid #c2e7b0;
+}
+
+.toast-error {
+  background-color: #fef0f0;
+  color: #f56c6c;
+  border: 1px solid #fbc4c4;
 }
 </style>

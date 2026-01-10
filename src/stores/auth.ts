@@ -101,6 +101,9 @@ export const useAuthStore = defineStore('auth', () => {
 
   async function login(data: LoginRequest) {
     const res = await authApi.login(data.username, data.password)
+    if (res.error) {
+      throw res.error
+    }
     // Supabase returns session internally; initSession will handle state, but keep backward compat
     await initSession()
     return res
@@ -109,6 +112,9 @@ export const useAuthStore = defineStore('auth', () => {
   async function register(data: RegisterRequest) {
     const normalizedRole = data.role.toLowerCase() as 'student' | 'admin' | 'worker'
     const res = await authApi.register(data.email, data.password, normalizedRole, data.name)
+    if (res.error) {
+      throw res.error
+    }
     await initSession()
     return res
   }
